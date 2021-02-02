@@ -13,20 +13,20 @@ MAX_USERS = 2
 active_users = {}
 active_users_lock = Lock()
 
-registered_users = {"jonas" : "hej"}
+registered_users = {}
 registered_users_lock = Lock()
 
 
 def server_init(addr : str, port : int, max_users : int):
-    """Sets up TCP socket and start listening on addr and port
+    """Sets up TCP socket and start listening on addr and port.
 
     Args:
-        addr (str): IPv4-address
-        port (int): port number
-        max_users (int): maximum ongoing connections
+        addr (str): IPv4-address.
+        port (int): port number.
+        max_users (int): maximum ongoing connections.
 
     Returns:
-        socket: server socket
+        socket: server socket.
     """
     try:
         s = socket(AF_INET, SOCK_STREAM)
@@ -37,13 +37,29 @@ def server_init(addr : str, port : int, max_users : int):
         print("[Exception] Could not initiate server: ", e)
         sys.exit(GC.EXIT_FAILURE)
 
+
 def message(s: socket, msg: str):
+    """Sends msg encoded as utf-8 to socket s.
+
+    Args:
+        s (socket): socket to retrieve msg.
+        msg (str): message to encode and form bytes for sending to s.
+    """
     try:
         s.sendall(bytes(msg, GC.ENCODING))
     except Exception as e:
         print("[EXCEPTION] Could not send message: ", e)
 
+
 def login(client_socket: socket):
+    """Handles login and register for a client. Should work threaded
+        TODO: active_users value should not be password, but (user_ip, user_port)
+    Args:
+        client_socket (socket): The client to register/login
+
+    Returns:
+        bool: True if logged in, else False
+    """
     while True:
         msg = client_socket.recv(GC.BUFFSIZE).decode()
         cmd, args = parse_command(msg)
@@ -94,6 +110,7 @@ def login(client_socket: socket):
         else:
             # Invalid command
             message(client_socket, GC.LOGIN_INV_COMMAND)
+
 
 def handle_connection(client_socket: socket):
     """Handles connection for a client (used threaded for each user)
