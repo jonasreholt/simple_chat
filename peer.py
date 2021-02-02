@@ -21,6 +21,8 @@ def error_wrapper(args: list, client: Client):
 
 
 def peer_app():
+    """Handles the peer application side through the command-line.
+    """
     client = Client()
     running = True
 
@@ -46,5 +48,6 @@ def peer_app():
             print(">> port was not a decimal value: ", e)
         except KeyError as e:
             print("[ERROR] peer switcher missing command.")
+
 
 peer_app()
