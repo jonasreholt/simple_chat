@@ -12,21 +12,41 @@ class Client:
         self.connected = False
         self.logged_in = False
 
+
     def communicate(self, msg: str):
+        """Sends msg as utf-8 encoded bytes to self.name_server.
+        (If sendall() fails on the background of lost connection,
+        it tries to reconect)
+
+        Args:
+            msg (str): msg to encode and send
+        """
         try:
             self.name_server.sendall(bytes(msg, GV.ENCODING))
         except Exception as e:
             self.connect(self.name_server_addr)
             print(e)
 
+
     def recieve_msg(self):
+        """Waits for and retrieves message form self.name_server.
+
+        Returns:
+            str: decoded message retrieved.
+        """
         try:
             return self.name_server.recv(GV.BUFFSIZE).decode()
         except Exception as e:
             print(">> Could not recieve message: ", e)
             return ""
 
+
     def connect(self, server_addr: (str, int)):
+        """Connects to a name server.
+
+        Args:
+            server_addr (str, int): (IP-address, port)
+        """
         if self.connected:
             print(">> You are already connected")
 
@@ -38,7 +58,16 @@ class Client:
         except Exception as e:
             print(">> Could not connect to socket: ", e)
 
+
     def login(self, username: str, passw: str, my_addr: (str, int)):
+        """Tries to login to self.name_server.
+
+        Args:
+            username (str): username to login with.
+            passw (str): password to login with.
+            my_addr (str, int): (my IP-address, my port) used to confer messages
+                                between peers.
+        """
         if self.logged_in or not self.connected:
             print(f">> Could not log in; you are connected:{self.connected}; you are logged in:{self.logged_in}")
 
@@ -52,7 +81,16 @@ class Client:
         else:
             print(">> Could not log in to name server.")
 
+
     def register(self, username: str, passw: str, my_addr: (str, int)):
+        """Tries to register this user.
+
+        Args:
+            username (str): username to register.
+            passw (str): password to register with.
+            my_addr (str, int): (my IP-address, my port) used to confer messages
+                                between peers.
+        """
         if self.logged_in or not self.connected:
             print(f">> Could not log in; you are connected:{self.connected}; you are logged in:{self.logged_in}")
 
@@ -66,7 +104,10 @@ class Client:
         else:
             print(">> Could not register to name server.")
 
+
     def logout(self):
+        """Tries to logout of self.name_server.
+        """
         if not self.logged_in:
             print(">> You are not logged in")
 
@@ -77,7 +118,13 @@ class Client:
         else:
             print(">> Could not log out of server.")
 
+
     def close(self):
+        """Tries to close connection with self.name_server.
+
+        Returns:
+            int: 1 for success, and 0 for failure.
+        """
         if self.logged_in and not self.logout():
             return GV.EXIT_FAILURE
 
