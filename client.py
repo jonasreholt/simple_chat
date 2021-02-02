@@ -12,9 +12,9 @@ class Client:
         self.connected = False
         self.logged_in = False
 
-    def communicate(self, msg: bytes):
+    def communicate(self, msg: str):
         try:
-            self.name_server.sendall(msg)
+            self.name_server.sendall(bytes(msg, GV.ENCODING))
         except Exception as e:
             self.connect(self.name_server_addr)
             print(e)
@@ -42,8 +42,7 @@ class Client:
         if self.logged_in or not self.connected:
             print(f">> Could not log in; you are connected:{self.connected}; you are logged in:{self.logged_in}")
 
-        msg = bytes(f"/login {username} {passw} {my_addr[0]} {my_addr[1]}", GV.ENCODING)
-        self.communicate(msg)
+        self.communicate(f"/login {username} {passw} {my_addr[0]} {my_addr[1]}")
         if self.recieve_msg() == GV.LOGIN_SUCCESS:
             self.username = username
             self.password = passw
@@ -57,8 +56,7 @@ class Client:
         if self.logged_in or not self.connected:
             print(f">> Could not log in; you are connected:{self.connected}; you are logged in:{self.logged_in}")
 
-        msg = bytes(f"/register {username} {passw} {my_addr[0]} {my_addr[1]}", GV.ENCODING)
-        self.communicate(msg)
+        self.communicate(f"/register {username} {passw} {my_addr[0]} {my_addr[1]}")
         if self.recieve_msg() == GV.REGISTER_SUCCESS:
             self.username = username
             self.password = passw
@@ -72,8 +70,7 @@ class Client:
         if not self.logged_in:
             print(">> You are not logged in")
 
-        msg = bytes(f"/logout", GV.ENCODING)
-        self.communicate(msg)
+        self.communicate("/logout")
         if self.recieve_msg() == GV.LOGOUT_SUCCESS:
             self.logged_in = False
             print(">> Succesfully logged out.")
@@ -81,17 +78,15 @@ class Client:
             print(">> Could not log out of server.")
 
     def close(self):
-        if self.logged_in or self.connected:
-            # Logging out of server before closing
-            if self.logout() == GV.EXIT_FAILURE:
-                return GV.EXIT_FAILURE
-
-        try:
-            self.name_server.close()
-            self.connected = False
-            print(">> Closing program.")
-            return GV.EXIT_SUCCESS
-        except Exception as e:
-            print(">> Could not close connection: ", e)
+        if self.logged_in and not self.logout():
             return GV.EXIT_FAILURE
 
+        if self.connected:
+            try:
+                self.name_server.close()
+                self.connected = False
+                print(">> Closing program.")
+                return GV.EXIT_SUCCESS
+            except Exception as e:
+                print(">> Could not close connection: ", e)
+                return GV.EXIT_FAILURE

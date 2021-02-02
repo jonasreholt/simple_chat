@@ -2,15 +2,27 @@ from client import Client
 from command import parse_command, commands
 import global_constants as GC
 
-def close_wrapper(elm: list, client: Client):
-    elm[0] = False if client.close() else True
+def connect_wrapper(args: list, client: Client):
+    client.connect((args[0], int(args[1])))
 
 def login_wrapper(args: list, client: Client):
     client.login(args[0], args[1], (args[2], int(args[3])))
 
+def register_wrapper(args: list, client: Client):
+    client.register(args[0], args[1], (args[2], int(args[3])))
+
+def logout_wrapper(args: list, client: Client):
+    # Arguments are included to match the wrapper pattern
+    client.logout()
+
+def error_wrapper(args: list, client: Client):
+    # Arguments are included to match the wrapper pattern
+    print(">> Invalid command")
+
+
 def peer_app():
     client = Client()
-    running = [True]
+    running = True
 
     while running:
         user_input = input(">> Enter command: ")
@@ -19,18 +31,20 @@ def peer_app():
         cmd, args = parse_command(user_input)
 
         switcher = {
-            # Problem med at den fuldfører kaldet client.login på trods af
-            # at det ikke er den, som bliver kaldt get på. Wrapper virker ikke
-            commands.CONNECT: client.connect((args[0], int(args[1]))),
-            commands.LOGIN: login_wrapper(args, client),
-            commands.REGISTER: client.register(args[0], args[1], (args[2], int(args[3]))),
-            commands.LOGOUT: client.logout(),
-            commands.CLOSE: close_wrapper(running, client),
-            commands.ERROR: print(">> Invalid command.")
+            commands.CONNECT: connect_wrapper,
+            commands.LOGIN: login_wrapper,
+            commands.REGISTER: register_wrapper,
+            commands.LOGOUT: logout_wrapper,
+            commands.ERROR: error_wrapper
         }
         try:
-            switcher.get(cmd, print("[ERROR] peer switcher missing command."))
+            if cmd == commands.CLOSE:
+                running = not client.close()
+            else:
+                switcher[cmd](args, client)
         except ValueError as e:
             print(">> port was not a decimal value: ", e)
+        except KeyError as e:
+            print("[ERROR] peer switcher missing command.")
 
 peer_app()

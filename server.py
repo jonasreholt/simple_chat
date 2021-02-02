@@ -1,7 +1,7 @@
 from socket import socket, AF_INET, SOCK_STREAM
 from threading import Thread, Lock
 from command import parse_command, commands
-import global_constants as GV
+import global_constants as GC
 import sys
 
 # Global constants
@@ -13,7 +13,7 @@ MAX_USERS = 2
 active_users = {}
 active_users_lock = Lock()
 
-registered_users = {}
+registered_users = {"jonas" : "hej"}
 registered_users_lock = Lock()
 
 
@@ -35,17 +35,17 @@ def server_init(addr : str, port : int, max_users : int):
         return s
     except Exception as e:
         print("[Exception] Could not initiate server: ", e)
-        sys.exit(GV.EXIT_FAILURE)
+        sys.exit(GC.EXIT_FAILURE)
 
-def message(s: socket, msg: bytes):
+def message(s: socket, msg: str):
     try:
-        s.sendall(msg)
+        s.sendall(bytes(msg, GC.ENCODING))
     except Exception as e:
         print("[EXCEPTION] Could not send message: ", e)
 
 def login(client_socket: socket):
     while True:
-        msg = client_socket.recv(GV.BUFFSIZE).decode()
+        msg = client_socket.recv(GC.BUFFSIZE).decode()
         cmd, args = parse_command(msg)
 
         if cmd == commands.LOGIN:
@@ -57,15 +57,18 @@ def login(client_socket: socket):
             if username in registered_users and registered_users[username] == passw and not username in active_users:
                 # User is valid
                 active_users[username] = passw
-                msg = bytes(GV.LOGIN_SUCCESS, GV.ENCODING)
-                message(client_socket, msg)
-            else:
-                msg = bytes(GV.LOGIN_FAILURE)
-                message(client_socket, msg)
+                message(client_socket, GC.LOGIN_SUCCESS)
 
-            active_users_lock.release()
-            registered_users_lock.release()
-            return True
+                active_users_lock.release()
+                registered_users_lock.release()
+                return True
+            else:
+                # User not valid
+                message(client_socket, GC.LOGIN_FAILURE)
+
+                active_users_lock.release()
+                registered_users_lock.release()
+                return False
 
         elif cmd == commands.REGISTER:
             username = args[0]
@@ -76,25 +79,21 @@ def login(client_socket: socket):
                 # User not already registred
                 registered_users[username] = passw
                 active_users_lock.acquire()
-                active_users[username] = passw
+                active_users[username] = passw # This should be (user_ip, user_port)
                 active_users_lock.release()
-            else:
-                msg = bytes(GV.REGISTER_FAILURE)
-                message(client_socket, msg)
-
+                registered_users_lock.release()
+                return True
+            # User already in register
+            message(client_socket, GC.REGISTER_FAILURE)
             registered_users_lock.release()
-            return True
+            return False
 
         elif cmd == commands.CLOSE:
             return False
 
         else:
             # Invalid command
-            msg = bytes(GV.LOGIN_INV_COMMAND, GV.ENCODING)
-            try:
-                client_socket.sendall(msg)
-            except Exception as e:
-                print("[EXCEPTION] Could not send message: ", e)
+            message(client_socket, GC.LOGIN_INV_COMMAND)
 
 def handle_connection(client_socket: socket):
     """Handles connection for a client (used threaded for each user)
@@ -104,8 +103,11 @@ def handle_connection(client_socket: socket):
     """
     if login(client_socket):
         # Handle connection
+        print(f"User {client_socket.getpeername()} logged in")
+        print(registered_users)
         raise NotImplementedError
     # Client is done using the server
+    print(f"Closing down user {client_socket.getpeername()}")
     client_socket.close()
 
 
@@ -117,13 +119,7 @@ if __name__ == "__main__":
     while running:
         conn, addr = s.accept()
         print(f"User {addr} connected to server.")
+        # Might have to give a copy of conn to the thread.
         thread = Thread(target=handle_connection, args=(conn,))
-        '''
-        while 1:
-            msg = conn.recv(GV.BUFFSIZE)
-            if not msg:
-                break
-            conn.sendall(msg)
-        conn.close()
-        '''
+        thread.start()
     
