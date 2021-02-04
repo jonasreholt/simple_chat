@@ -15,6 +15,14 @@ def logout_wrapper(args: list, client: Client):
     # Arguments are included to match the wrapper pattern
     client.logout()
 
+def lookup_wrapper(args: list, client: Client):
+    if len(args):
+        # lookup specific user
+        client.lookup(args[0])
+    else:
+        # lookup all users
+        client.lookup("")
+
 def error_wrapper(args: list, client: Client):
     # Arguments are included to match the wrapper pattern
     print(">> Invalid command")
@@ -37,6 +45,7 @@ def peer_app():
             commands.LOGIN: login_wrapper,
             commands.REGISTER: register_wrapper,
             commands.LOGOUT: logout_wrapper,
+            commands.LOOKUP: lookup_wrapper,
             commands.ERROR: error_wrapper
         }
         try:
