@@ -149,7 +149,6 @@ class Client:
             while True:
                 msg = self.recieve_msg()
                 if msg == GC.LOOKUP_DONE or not msg:
-                    print("[ATTENTION] breaking")
                     break
                 print(msg)
 
