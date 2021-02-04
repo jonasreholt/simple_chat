@@ -1,6 +1,7 @@
 from socket import socket, SOCK_STREAM, AF_INET
 from command import commands
 import global_constants as GC
+from typing import Tuple
 
 
 class Client:
@@ -11,6 +12,7 @@ class Client:
             print(">> Could not open socket: ", e)
         self.connected = False
         self.logged_in = False
+        self.messages = []
 
 
     def communicate(self, msg: str):
@@ -22,7 +24,7 @@ class Client:
             msg (str): msg to encode and send
         """
         try:
-            self.name_server.sendall(bytes(msg, GC.ENCODING))
+            self.name_server.sendall(bytes(msg + GC.END_MARKER, GC.ENCODING))
         except Exception as e:
             self.connect(self.name_server_addr)
             print(e)
@@ -35,13 +37,30 @@ class Client:
             str: decoded message retrieved.
         """
         try:
-            return self.name_server.recv(GC.BUFFSIZE).decode()
+            while (True):
+                if len(self.messages) > 0 and GC.END_MARKER in self.messages[0]:
+                    # messages already contains a whole element
+                    break
+                msg = self.name_server.recv(1024).decode("utf-8")
+                if not msg: # End of file recieved
+                    break
+                self.messages.append(msg)
+                if GC.END_MARKER in msg:
+                    break
+                elif len(self.messages) > 1:
+                    last_pair = self.messages[-2] + self.messages[-1]
+                    if GC.END_MARKER in last_pair:
+                        break
+            msg = "".join(self.messages)
+            mark_idx = msg.find(GC.END_MARKER)
+            self.messages = [msg[mark_idx + 1:]]
+            return msg[:mark_idx]
         except Exception as e:
-            print(">> Could not recieve message: ", e)
+            print(">> could not recieve message: ", e)
             return ""
 
 
-    def connect(self, server_addr: (str, int)):
+    def connect(self, server_addr: Tuple[str, int]):
         """Connects to a name server.
 
         Args:
@@ -59,7 +78,7 @@ class Client:
                 print(">> Could not connect to socket: ", e)
 
 
-    def login(self, username: str, passw: str, my_addr: (str, int)):
+    def login(self, username: str, passw: str, my_addr: Tuple[str, int]):
         """Tries to login to self.name_server.
 
         Args:
@@ -82,7 +101,7 @@ class Client:
                 print(">> Could not log in to name server.")
 
 
-    def register(self, username: str, passw: str, my_addr: (str, int)):
+    def register(self, username: str, passw: str, my_addr: Tuple[str, int]):
         """Tries to register this user.
 
         Args:
@@ -119,6 +138,20 @@ class Client:
             return GC.EXIT_SUCCESS
         print(">> Could not log out of server.")
         return GC.EXIT_FAILURE
+
+
+    def lookup(self, nickname: str):
+        if not self.logged_in or not self.connected:
+            print(f">> Could not lookup; you are connected:{self.connected}; you are logged in:{self.logged_in}")
+        else:
+            self.communicate("/lookup " + nickname)
+
+            while True:
+                msg = self.recieve_msg()
+                if msg == GC.LOOKUP_DONE or not msg:
+                    print("[ATTENTION] breaking")
+                    break
+                print(msg)
 
 
     def close(self):
