@@ -3,6 +3,7 @@ from threading import Thread, Lock
 import sys
 
 from command import parse_command, commands
+from messenger import Messenger
 from person import Person
 import global_constants as GC
 
@@ -21,7 +22,7 @@ registered_users = {}
 registered_users_lock = Lock()
 '''
 
-class Server:
+class Server(Messenger):
     def __init__(self, addr: str, port: int, max_users: int):
         """Sets up TCP socket and start listening on addr and port.
 
@@ -30,12 +31,13 @@ class Server:
             port (int): port number.
             max_users (int): maximum ongoing connections.
         """
+        Messenger.__init__(self)
         try:
             self.listen_socket = socket(AF_INET, SOCK_STREAM)
             self.listen_socket.bind((addr, port))
             self.listen_socket.listen(max_users)
 
-            self.messages = []
+            #self.messages = []
             self.active_users = {}
             self.active_users_lock = Lock()
 
@@ -44,49 +46,6 @@ class Server:
         except Exception as e:
             print("[Exception] Could not initiate server: ", e)
             sys.exit(GC.EXIT_FAILURE)
-
-
-    def message(self, s: socket, msg: str):
-        """Sends msg encoded as utf-8 to socket s.
-
-        Args:
-            s (socket): socket to retrieve msg.
-            msg (str): message to encode and form bytes for sending to s.
-        """
-        try:
-            s.sendall(bytes(msg + GC.END_MARKER, GC.ENCODING))
-        except Exception as e:
-            print("[EXCEPTION] Could not send message: ", e)
-
-
-    def recieve_msg(self, client_socket: socket):
-        """Waits for and retrieves message form client_socket.
-
-        Returns:
-            str: decoded message retrieved.
-        """
-        try:
-            while (True):
-                if len(self.messages) > 0 and GC.END_MARKER in self.messages[0]:
-                    # messages already contains a whole element
-                    break
-                msg = client_socket.recv(1024).decode("utf-8")
-                if not msg: # End of file recieved
-                    break
-                self.messages.append(msg)
-                if GC.END_MARKER in msg:
-                    break
-                elif len(self.messages) > 1:
-                    last_pair = self.messages[-2] + self.messages[-1]
-                    if GC.END_MARKER in last_pair:
-                        break
-            msg = "".join(self.messages)
-            mark_idx = msg.find(GC.END_MARKER)
-            self.messages = [msg[mark_idx + 1:]]
-            return msg[:mark_idx]
-        except Exception as e:
-            print(">> could not recieve message: ", e)
-            return ""
 
 
     def login(self, person: Person):
@@ -99,7 +58,7 @@ class Server:
             bool: True if logged in, else False
         """
         while True:
-            msg = self.recieve_msg(person.connection)
+            msg = self.receive_msg(person.connection)
             cmd, args = parse_command(msg)
 
             if cmd == commands.LOGIN:
@@ -112,13 +71,13 @@ class Server:
                     # User is valid
                     person.set_login(username, passw, (args[2], args[3]))
                     self.active_users[username] = person
-                    self.message(person.connection, GC.LOGIN_SUCCESS)
+                    self.send_msg(person.connection, GC.LOGIN_SUCCESS)
 
                     self.active_users_lock.release()
                     self.registered_users_lock.release()
                     return True
                 # User not valid
-                self.message(person.connection, GC.LOGIN_FAILURE)
+                self.send_msg(person.connection, GC.LOGIN_FAILURE)
 
                 self.active_users_lock.release()
                 self.registered_users_lock.release()
@@ -139,10 +98,10 @@ class Server:
                     self.active_users_lock.release()
                     self.registered_users_lock.release()
 
-                    self.message(person.connection, GC.REGISTER_SUCCESS)
+                    self.send_msg(person.connection, GC.REGISTER_SUCCESS)
                     return True
                 # User already in register
-                self.message(person.connection, GC.REGISTER_FAILURE)
+                self.send_msg(person.connection, GC.REGISTER_FAILURE)
                 self.registered_users_lock.release()
                 #return False
 
@@ -151,7 +110,7 @@ class Server:
 
             else:
                 # Invalid command
-                self.message(person.connection, GC.LOGIN_INV_COMMAND)
+                self.send_msg(person.connection, GC.LOGIN_INV_COMMAND)
 
 
     def handle_connection(self, person: Person):
@@ -167,22 +126,22 @@ class Server:
 
             running = True
             while running:
-                msg = self.recieve_msg(person.connection)
+                msg = self.receive_msg(person.connection)
                 cmd, args = parse_command(msg)
 
                 if cmd == commands.LOOKUP:
                     if not len(args):
                         # lookup all active users
                         self.active_users_lock.acquire()
-                        self.message(person.connection, f">> {len(self.active_users)} user(s) online. The list follows:")
+                        self.send_msg(person.connection, f">> {len(self.active_users)} user(s) online. The list follows:")
                         for user in self.active_users.values():
                             msg = f">> {user.username} is online:\n"
                             msg = msg + f">> IP: {user.listen_addr[0]}\n"
                             msg = msg + f">> Port: {user.listen_addr[1]}"
-                            self.message(person.connection, msg)
-                            #message(person.connection, f">> {user.username} is online:")
-                            #message(person.connection, f">> IP: {user.listen_addr[0]}")
-                            #message(person.connection, f">> Port: {user.listen_addr[1]}")
+                            self.send_msg(person.connection, msg)
+                            #send_msg(person.connection, f">> {user.username} is online:")
+                            #send_msg(person.connection, f">> IP: {user.listen_addr[0]}")
+                            #send_msg(person.connection, f">> Port: {user.listen_addr[1]}")
                         self.active_users_lock.release()
                     else:
                         # Lookup user in args[0] (also check whether user found)
@@ -192,23 +151,23 @@ class Server:
                         self.active_users_lock.release()
 
                         if user:
-                            self.message(person.connection, f">> {user.username} is online:")
-                            self.message(person.connection, f">> IP: {user.listen_addr[0]}")
-                            self.message(person.connection, f">> Port: {user.listen_addr[1]}")
+                            self.send_msg(person.connection, f">> {user.username} is online:")
+                            self.send_msg(person.connection, f">> IP: {user.listen_addr[0]}")
+                            self.send_msg(person.connection, f">> Port: {user.listen_addr[1]}")
                         else:
-                            self.message(person.connection, f">> {args[0]} is not online (or username invalid)")
+                            self.send_msg(person.connection, f">> {args[0]} is not online (or username invalid)")
                     print("sending lookup done")
-                    self.message(person.connection, GC.LOOKUP_DONE)
+                    self.send_msg(person.connection, GC.LOOKUP_DONE)
 
                 elif cmd == commands.LOGOUT:
                     try:
                         self.active_users_lock.acquire()
                         self.active_users.pop(person.username)
-                        self.message(person.connection, GC.LOGOUT_SUCCESS)
+                        self.send_msg(person.connection, GC.LOGOUT_SUCCESS)
                         running = False
                     except KeyError as e:
                         print("[EXCEPTION] Could not remove user: ", e)
-                        self.message(person.connection, GC.LOGOUT_FAILURE)
+                        self.send_msg(person.connection, GC.LOGOUT_FAILURE)
                     finally:
                         self.active_users_lock.release()
 
@@ -224,7 +183,7 @@ class Server:
 
                 else:
                     # Invalid command
-                    self.message(person.connection, GC.LOGGEDIN_INV_COMMAND)
+                    self.send_msg(person.connection, GC.LOGGEDIN_INV_COMMAND)
 
         # Client is done using the server
         print(f"Closing down user {person.connection.getpeername()}")
