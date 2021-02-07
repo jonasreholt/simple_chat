@@ -84,7 +84,7 @@ def test_parse_command():
     ### MSG
     command = "msg"
     arg0 = "nickname"
-    arg1 = "message"
+    arg1 = "Pua is the best in the world!"
     cmd, args = parse_command(f"/{command} {arg0} {arg1}")
 
     res = (cmd == commands.MSG and len(args) == 2)

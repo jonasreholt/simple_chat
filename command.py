@@ -26,13 +26,17 @@ cmds = {
 
 
 def parse_command(user_input : str):
+    # TODO: make special case for msg
     if user_input:
         user_input = user_input.split()
         cmd = user_input[0]
         args = user_input[1::]
-        argsn = len(args)
+        argsn = len(args) if cmd != "/msg" else 2
         cmd = cmds.get((cmd, argsn), commands.ERROR)
+
         if cmd == commands.ERROR:
             return cmd, []
+        elif cmd == commands.MSG:
+            return cmd, [args[0], " ".join(args[1::])]
         else:
             return cmd, args
