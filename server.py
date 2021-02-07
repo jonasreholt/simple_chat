@@ -9,18 +9,10 @@ import global_constants as GC
 
 
 # Global constants
-PORT = 8800
+PORT = 7700
 IP_ADDR = "localhost"
 MAX_USERS = 2
 
-# Global variables
-'''
-active_users = {}
-active_users_lock = Lock()
-
-registered_users = {}
-registered_users_lock = Lock()
-'''
 
 class Server(Messenger):
     def __init__(self, addr: str, port: int, max_users: int):
@@ -30,6 +22,9 @@ class Server(Messenger):
             addr (str): IPv4-address.
             port (int): port number.
             max_users (int): maximum ongoing connections.
+        
+        Raises:
+            SystemExit: If connection could not be initiated
         """
         Messenger.__init__(self)
         try:
@@ -37,20 +32,18 @@ class Server(Messenger):
             self.listen_socket.bind((addr, port))
             self.listen_socket.listen(max_users)
 
-            #self.messages = []
             self.active_users = {}
             self.active_users_lock = Lock()
 
             self.registered_users = {}
             self.registered_users_lock = Lock()
         except Exception as e:
-            print("[Exception] Could not initiate server: ", e)
-            sys.exit(GC.EXIT_FAILURE)
+            sys.exit(f"[Exception] Could not initiate server: {e}")
 
 
     def login(self, person: Person):
         """Handles login and register for a client. Should work threaded
-            TODO: active_users value should not be password, but (user_ip, user_port)
+
         Args:
             client_socket (socket): The client to register/login
 
@@ -59,6 +52,9 @@ class Server(Messenger):
         """
         while True:
             msg = self.receive_msg(person.connection)
+            if not msg:
+                # Server lost connection to client
+                return False
             cmd, args = parse_command(msg)
 
             if cmd == commands.LOGIN:
@@ -115,18 +111,20 @@ class Server(Messenger):
 
     def handle_connection(self, person: Person):
         """Handles connection for a client (used threaded for each user)
-
-        Raises:
-            NotImplementedError: [description]
         """
         ongoing_connection = True
         while ongoing_connection and self.login(person):
             print(f"User {person.connection.getpeername()} logged in")
-            print(self.registered_users)
 
             running = True
             while running:
                 msg = self.receive_msg(person.connection)
+                if not msg:
+                    # Server lost connection to client
+                    ongoing_connection = False
+                    with self.active_users_lock:
+                        self.active_users.pop(person.username)
+                    break
                 cmd, args = parse_command(msg)
 
                 if cmd == commands.LOOKUP:
@@ -139,13 +137,9 @@ class Server(Messenger):
                             msg = msg + f">> IP: {user.listen_addr[0]}\n"
                             msg = msg + f">> Port: {user.listen_addr[1]}"
                             self.send_msg(person.connection, msg)
-                            #send_msg(person.connection, f">> {user.username} is online:")
-                            #send_msg(person.connection, f">> IP: {user.listen_addr[0]}")
-                            #send_msg(person.connection, f">> Port: {user.listen_addr[1]}")
                         self.active_users_lock.release()
                     else:
                         # Lookup user in args[0] (also check whether user found)
-                        print("Looking up one user")
                         self.active_users_lock.acquire()
                         user = self.active_users.get(args[0])
                         self.active_users_lock.release()
@@ -155,8 +149,7 @@ class Server(Messenger):
                             self.send_msg(person.connection, f">> IP: {user.listen_addr[0]}")
                             self.send_msg(person.connection, f">> Port: {user.listen_addr[1]}")
                         else:
-                            self.send_msg(person.connection, f">> {args[0]} is not online (or username invalid)")
-                    print("sending lookup done")
+                            self.send_msg(person.connection, GC.LOOKUP_FAILED(args[0]))
                     self.send_msg(person.connection, GC.LOOKUP_DONE)
 
                 elif cmd == commands.LOGOUT:
@@ -170,12 +163,6 @@ class Server(Messenger):
                         self.send_msg(person.connection, GC.LOGOUT_FAILURE)
                     finally:
                         self.active_users_lock.release()
-
-                elif cmd == commands.MSG:
-                    raise NotImplementedError
-
-                elif cmd == commands.SHOW:
-                    raise NotImplementedError
 
                 elif cmd == commands.CLOSE:
                     running = False
@@ -201,24 +188,9 @@ if __name__ == "__main__":
             print(f"User {addr} connected to server.")
             thread = Thread(target=server.handle_connection, args=(person,))
             thread.start()
+        except SystemExit as e:
+            print(e)
+            break
         except Exception as e:
             print("[EXCEPTION] ", e)
             break
-'''
-if __name__ == "__main__":
-    print("server turned on.")
-    s = server_init(IP_ADDR, PORT, MAX_USERS)
-    print("Server listening for connections.")
-    running = True
-    while running:
-        try:
-            conn, addr = s.accept()
-            person = Person(conn)
-            print(f"User {addr} connected to server.")
-            # Might have to give a copy of conn to the thread.
-            thread = Thread(target=handle_connection, args=(person,))
-            thread.start()
-        except Exception as e:
-            print("[EXCEPTION] ", e)
-            break
-'''
