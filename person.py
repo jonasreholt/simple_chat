@@ -1,5 +1,5 @@
 from socket import socket
-from collections import Tuple
+from typing import Tuple
 
 class Person:
     def __init__(self, conn: socket):

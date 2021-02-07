@@ -1,5 +1,5 @@
 from socket import socket
-import global_constants as GC
+import common.global_constants as GC
 
 class Messenger:
     def __init__(self):

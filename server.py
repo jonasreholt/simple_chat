@@ -2,10 +2,10 @@ from socket import socket, AF_INET, SOCK_STREAM
 from threading import Thread, Lock
 import sys
 
-from command import parse_command, commands
-from messenger import Messenger
+from common.command import parse_command, commands
+from common.messenger import Messenger
 from person import Person
-import global_constants as GC
+import common.global_constants as GC
 
 
 # Global constants

@@ -1,4 +1,4 @@
-from command import parse_command, commands
+from common.command import parse_command, commands
 
 def test_parse_command():
     ########## TEST FOR PARSE_COMMAND ###########

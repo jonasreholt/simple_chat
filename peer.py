@@ -1,6 +1,6 @@
 from client import Client
-from command import parse_command, commands
-import global_constants as GC
+from common.command import parse_command, commands
+import common.global_constants as GC
 
 def connect_wrapper(args: list, client: Client):
     client.connect((args[0], int(args[1])))

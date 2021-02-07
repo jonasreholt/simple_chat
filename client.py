@@ -4,8 +4,8 @@ from typing import Tuple
 from collections import namedtuple
 import sys
 
-from messenger import Messenger
-import global_constants as GC
+from common.messenger import Messenger
+import common.global_constants as GC
 
 
 MAX_USERS = 3
