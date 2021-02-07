@@ -26,7 +26,14 @@ cmds = {
 
 
 def parse_command(user_input : str):
-    # TODO: make special case for msg
+    """Parse a string command into a commands enum, and a list of arguments.
+
+    Args:
+        user_input (str): The string to parse a command from
+
+    Returns:
+        (commands, list): (given command, list of arguments to command)
+    """
     if user_input:
         user_input = user_input.split()
         cmd = user_input[0]

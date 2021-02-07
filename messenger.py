@@ -9,7 +9,7 @@ class Messenger:
         """Waits for and retrieves message form s.
 
         Returns:
-            str: decoded message retrieved.
+            str: decoded message retrieved. "" if no message or error
         """
         try:
             while (True):
