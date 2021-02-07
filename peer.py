@@ -18,10 +18,20 @@ def logout_wrapper(args: list, client: Client):
 def lookup_wrapper(args: list, client: Client):
     if len(args):
         # lookup specific user
-        client.lookup(args[0])
+        client.lookup(args[0], True)
     else:
         # lookup all users
-        client.lookup("")
+        client.lookup("", True)
+
+def show_wrapper(args: list, client: Client):
+    if len(args):
+        # Show for specific user
+        client.show(args[0])
+    else:
+        client.show("")
+
+def msg_wrapper(args: list, client: Client):
+    client.msg(args[0], args[1])
 
 def error_wrapper(args: list, client: Client):
     # Arguments are included to match the wrapper pattern
@@ -46,6 +56,8 @@ def peer_app():
             commands.REGISTER: register_wrapper,
             commands.LOGOUT: logout_wrapper,
             commands.LOOKUP: lookup_wrapper,
+            commands.SHOW: show_wrapper,
+            commands.MSG: msg_wrapper,
             commands.ERROR: error_wrapper
         }
         try:
@@ -57,6 +69,11 @@ def peer_app():
             print(">> port was not a decimal value: ", e)
         except KeyError as e:
             print("[ERROR] peer switcher missing command.")
+        except AssertionError as e:
+            print(e)
+        except SystemExit as e:
+            print(e)
+            running = False
 
 
 peer_app()
